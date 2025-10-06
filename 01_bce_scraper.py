@@ -52,7 +52,10 @@ def delete_empty_rows(df):
     df = df[df['TasaMaxima'] != 'Tasas Máximas']
     df = df[df['TasaMaxima'] != 'para el segmento:']
     df = df[df['TasaMaxima'] != ' ']
-    df = df[df['TasaMaxima'] != '\n \n'] 
+    df = df[df['TasaMaxima'] != '\n \n']
+    df = df[df['TasaMaxima'] != '\n% \n      anual']
+    df = df[df['TasaMaxima'] != '\n%\n  anual\n']
+    df = df[df['TasaMaxima'] != '\n\xa0']
     df = df[df['Segmento'] != ' ']
     return df
 
@@ -75,8 +78,26 @@ def format_table_01_df(df, year, month):
         df.columns = ['Segmento2','TasaReferencial','Segmento','TasaMaxima']
     elif year == '2016' and month in ['01','02','06']:
         df.columns = ['Segmento2','TasaReferencial','Segmento','TasaMaxima','DummyCol']
-    elif year == '2015':
+    elif year == '2015' and month not in ['08','09']:
         df.columns = ['Segmento2','TasaReferencial','Segmento','TasaMaxima']
+    elif year == '2014' or year == '2013' or year == '2012' or year == '2011' or year == '2010':
+        df.columns = ['Segmento2','TasaReferencial','Segmento','TasaMaxima']
+    elif year == '2009' and month not in ['03','05','06','07','08','09','10','11','12']:
+        df.columns = ['Segmento2','TasaReferencial','Segmento','TasaMaxima','Col5','Col6']
+    elif year == '2009' and month in ['03']:
+        df.columns = ['DummyCol','Segmento2','TasaReferencial','Segmento','TasaMaxima','Col6','Col7']
+    elif year == '2009' and month in ['05','06','07','08','10','11','12']:
+        df.columns = ['Segmento2','TasaReferencial','Segmento','TasaMaxima']
+    elif year == '2009' and month in ['09']:
+        df.columns = ['Segmento2','TasaReferencial','Segmento','TasaMaxima','Col5']
+    elif year == '2008' and month in ['01']:
+        df.columns = ['Segmento2','TasaReferencial','Segmento','TasaMaxima','Col5','Col6','Col7']
+    elif year == '2008' and month in ['08','11']:
+        df.columns = ['Segmento2','TasaReferencial','Segmento','TasaMaxima']
+    elif year == '2008' and month not in ['01','08','11']:
+        df.columns = ['Segmento2','TasaReferencial','Segmento','TasaMaxima','Col5','Col6']
+    elif year == '2007':
+        df.columns = ['Segmento','TasaMaxima']
     else:
         df.columns = ['Segmento','TasaMaxima','Col3','Col4']
 
@@ -88,7 +109,7 @@ def format_table_01_df(df, year, month):
     # Return the clean dataframe
     return df
 
-# Fn04: bce_interest_rates_scraper = Main function to scrap the interest rates from the BCE website
+# Fn06: bce_interest_rates_scraper = Main function to scrap the interest rates from the BCE website
 def bce_interest_rates_scraper(wd_path, year, month, wait_seconds):
     # Step 1. Call the selenium driver
     url = 'https://contenido.bce.fin.ec/documentos/Estadisticas/SectorMonFin/TasasInteres/TasasVigentes' + month + year + '.htm'
@@ -112,12 +133,40 @@ def bce_interest_rates_scraper(wd_path, year, month, wait_seconds):
 
     return table_df
 
-# General parameters
-wait_seconds = 2  # Seconds to wait for the page to load
-year = '2015'
-for month in range(1, 13):
+# Fn07 = append_excel_files = Append all the csv files in the raw data folder into a single dataframe
+def append_excel_files(wd_path):
+    folder_path = wd_path + "\\data\\raw"
+    files_vector = os.listdir(folder_path) # Get all the files in the folder
+    # 2. Initialize an empty list to store DataFrames
+    dfs = []
+    # 3. Iterate over each file in the directory
+    for file in files_vector:
+       if file.endswith('.xlsx'):
+          file_path = os.path.join(folder_path, file) # Get the file path
+          date_string = file[-11:]                    # Extract the date string from the file name
+          df = pd.read_excel(file_path)
+          df['FileDate'] = date_string                # Add a column with the file date
+          dfs.append(df)
+    # 4. Concatenate all DataFrames in the list into a single DataFrame
+    final_df = pd.concat(dfs, ignore_index=True)
+    return final_df
+
+
+
+# 1. Call the scraper 
+wait_seconds = 2  
+year = '2007'
+for month in range(8, 13):
     month = str(month).zfill(2)
     print(f"Scraping data for {year}-{month}")
     ir_df = bce_interest_rates_scraper(wd_path, year, month, wait_seconds)
 
-ir_df.shape[1]
+# 2. Data cleansing
+df = append_excel_files(wd_path)
+seg_fn_df = pd.read_excel(wd_path + '\\data\\SegmentosFinalNames.xlsx')
+df = df.merge(seg_fn_df, on='Segmento', how='left')
+df = df[df['Keep'] == 'Yes' ] 
+df = df.rename(columns={'Segmento': 'SegmentoRawName', 'SegmentoFinalName': 'SegmentoCleanName'})
+new_order = ['SegmentoRawName', 'SegmentoCleanName', 'TasaMaxima' ,'Year', 'Month', 'YearMonth', 'Keep']
+df = df[new_order]
+df.to_excel(wd_path + '\\data\\clean\\BCE_Max_Interest_Rates.xlsx', index=False)
