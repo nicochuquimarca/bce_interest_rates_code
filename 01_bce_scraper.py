@@ -118,9 +118,22 @@ def bce_interest_rates_scraper(wd_path, year, month, wait_seconds):
     wait = WebDriverWait(driver, wait_seconds)  # 10 is the timeout in seconds
 
     # Step 2. Check the table is in the format I neeed
-    table_xpath = '/html/body/div/table[1]/tbody'
+    if year not in ['2023','2024','2025']:
+        table_xpath = '/html/body/div/table[1]/tbody'
+    elif year in ['2023'] and month in ['07']:
+        table_xpath = '/html/body/div[4]/table/tbody'
+    elif year in ['2023'] and month in ['08','09','10','11','12']:
+        table_xpath = '/html/body/div/table[2]/tbody'
+    elif year in ['2024']:
+        table_xpath = '/html/body/div/table[2]/tbody'
+    elif year in ['2025'] and month in ['01','02']:
+        table_xpath = '/html/body/div/table[2]/tbody'
+    elif year in ['2025'] and month not in ['01','02']:
+        table_xpath = '/html/body/div/table[1]/tbody'
+    
     table_test  = element_test(driver,table_xpath) # Check if the summary table exists
     if table_test == False:
+        print("Unable to find the table in the original xpath provided, trying an alternative xpath")
         table_xpath = '/html/body/div/div/table/tbody'
     table_test  = element_test(driver,table_xpath) # Check if the summary table exists
     table_df    = get_table_df(driver,table_xpath)
@@ -155,8 +168,8 @@ def append_excel_files(wd_path):
 
 # 1. Call the scraper 
 wait_seconds = 2  
-year = '2007'
-for month in range(8, 13):
+year = '2025'
+for month in range(1, 3):
     month = str(month).zfill(2)
     print(f"Scraping data for {year}-{month}")
     ir_df = bce_interest_rates_scraper(wd_path, year, month, wait_seconds)
