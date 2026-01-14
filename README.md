@@ -14,4 +14,4 @@ Example link for January 2026:
 - Python
 
 ## Warning
-Please note that the table structure is not constant trough out all the periods.
+Please note that the table structure is not constant throughout all periods.
